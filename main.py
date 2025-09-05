@@ -108,8 +108,8 @@ class App(MainWindow):
 
 
     def update_image(self):
-        # Save annotations before changing image
-        self.save_annotations()
+        ## Save annotations before changing image   # Commented by Martin
+        # self.save_annotations()                   # Commented by Martin
         img_path = os.path.join(DATA_DIR, self.image_files[self.index])
         pixmap = self.fit_pixmap_to_label(img_path)
         self.ui.label.setPixmap(pixmap)
@@ -208,11 +208,13 @@ class App(MainWindow):
 
     def next_image(self):
         if self.index < len(self.image_files) - 1:
+            self.save_annotations()                 # Added by Martin
             self.index += 1
             self.update_image()
 
     def prev_image(self):
         if self.index > 0:
+            self.save_annotations()                 # Added by Martin
             self.index -= 1
             self.update_image()
 
