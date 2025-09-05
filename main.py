@@ -108,13 +108,13 @@ class App(MainWindow):
 
 
     def update_image(self):
-        ## Save annotations before changing image   # Commented by Martin
-        # self.save_annotations()                   # Commented by Martin
         img_path = os.path.join(DATA_DIR, self.image_files[self.index])
         pixmap = self.fit_pixmap_to_label(img_path)
         self.ui.label.setPixmap(pixmap)
         # Update index label
-        self.ui.label_3.setText(f"index: {self.index}")
+        image_name_to_display = self.image_files[self.index].split("_")[1].replace(".png","")
+        self.ui.label_3.setText(f"{image_name_to_display}")
+        # self.ui.label_3.setText(f"index: {self.index}")
 
         label_row = self.labels[self.index]
         fg_values = [label_row[i] for i in self.fg_indexes]
@@ -218,17 +218,24 @@ class App(MainWindow):
             self.index -= 1
             self.update_image()
 
+    def pad_numeric_text(self, text):
+        # e.g. 10 corresponds to 000010
+        # 100 corresponds to 000100
+        # 1000 corresponds to 001000
+        if text.isdigit():
+            return str(text).zfill(6)
+        return text
+    
     def go_to_index(self):
+        # The name of the image or part of it (is numeric string)
         text = self.ui.plainTextEdit.toPlainText().strip()
-        try:
-            idx = int(text)
-        except ValueError:
-            idx = 0
-        if idx < 0:
-            idx = 0
-        elif idx >= len(self.image_files):
-            idx = len(self.image_files) - 1
-        self.index = idx
+        text = self.pad_numeric_text(text)
+        # Find the index of the image among self.image_files
+        for i, file in enumerate(self.image_files):
+            if text in file:
+                self.index = i
+                break
+        
         self.update_image()
 
     def keyPressEvent(self, event):
