@@ -1,3 +1,6 @@
 __pycache__/
 data/*
 !data/.gitkeep
+file_index_finder.py
+.venv/
+.idea/
