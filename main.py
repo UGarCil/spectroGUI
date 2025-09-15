@@ -1,8 +1,9 @@
+
 import sys
 import os
 import numpy as np
 from PyQt5 import QtWidgets, QtGui, QtCore
-from gui import MainWindow
+from gui import MainWindow, FUNCTIONAL_GROUPS
 
 # Get all PNG images in ./data
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
@@ -12,6 +13,9 @@ image_files = sorted([f for f in os.listdir(DATA_DIR) if f.endswith('.png')])
 LABELS_PATH = os.path.join(DATA_DIR, 'subsa_labels_10000.npy')
 labels = np.load(LABELS_PATH)
 assert labels.shape[0] == len(image_files), "Labels and images count mismatch!"
+
+# Global annotation directory (can be customized)
+ANN_DIR = os.path.join(os.path.dirname(__file__), 'annotations')
 
 
 class Box:
@@ -33,44 +37,13 @@ class Box:
         return x, y, w, h
 
 class App(MainWindow):
-    def save_annotations(self):
-        # Save current annotations to a txt file in COCO format
-        if not self.annotations:
-            return
-        # Create annotations folder if not exists
-        ann_dir = os.path.join(os.path.dirname(__file__), 'annotations')
-        if not os.path.exists(ann_dir):
-            os.makedirs(ann_dir)
-        # Get image filename and build annotation filename
-        img_filename = self.image_files[self.index]
-        ann_filename = os.path.splitext(img_filename)[0] + '.txt'
-        ann_path = os.path.join(ann_dir, ann_filename)
-        # Save each annotation in COCO format: label_idx x y w h
-        with open(ann_path, 'w') as f:
-            for i, ann in enumerate(self.annotations):
-                label_idx = ann.get('label_idx', 0)
-                line = f"{label_idx}\t{ann['x']}\t{ann['y']}\t{ann['w']}\t{ann['h']}\n"
-                f.write(line)
-        print(f"Saved annotations to {ann_path}")
-        # Clear boxes and annotations
-        self.boxes = []
-        self.annotations = []
-        
-    def enable_edit_mode(self):
-        self.cursor_settings["mode"] = "edit"
-        
-    def fit_pixmap_to_label(self, img_path):
-        label_size = self.ui.label.size()
-        pixmap = QtGui.QPixmap(img_path)
-        # Resize to fit QLabel exactly (ignore aspect ratio)
-        pixmap = pixmap.scaled(label_size, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.SmoothTransformation)
-        return pixmap
-    def __init__(self, image_files, labels):
+    def __init__(self, image_files, labels, ann_dir):
         super().__init__()
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.fg_indexes = [0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15]
         self.image_files = image_files
         self.labels = labels
+        self.ann_dir = ann_dir
         self.index = 0
         self.annotations = []  # List of dicts: [{x, y, w, h, label, label_idx}]
         self.boxes = []        # List of Box instances for current image
@@ -93,6 +66,39 @@ class App(MainWindow):
             btn.clicked.connect(lambda checked, idx=idx, btn=btn: self.set_box_label(btn.text(), idx))
         # Enable mouse tracking on label
         self.ui.label.setMouseTracking(True)
+        
+    def save_annotations(self):
+        # Save current annotations to a txt file in COCO format
+        if not self.annotations:
+            return
+        # Create annotations folder if not exists
+        if not os.path.exists(self.ann_dir):
+            os.makedirs(self.ann_dir)
+        # Get image filename and build annotation filename
+        img_filename = self.image_files[self.index]
+        ann_filename = os.path.splitext(img_filename)[0] + '.txt'
+        ann_path = os.path.join(self.ann_dir, ann_filename)
+        # Save each annotation in COCO format: label_idx x y w h
+        with open(ann_path, 'w') as f:
+            for i, ann in enumerate(self.annotations):
+                label_idx = ann.get('label_idx', 0)
+                line = f"{label_idx}\t{ann['x']}\t{ann['y']}\t{ann['w']}\t{ann['h']}\n"
+                f.write(line)
+        print(f"Saved annotations to {ann_path}")
+        # Clear boxes and annotations
+        self.boxes = []
+        self.annotations = []
+        
+    def enable_edit_mode(self):
+        self.cursor_settings["mode"] = "edit"
+        
+    def fit_pixmap_to_label(self, img_path):
+        label_size = self.ui.label.size()
+        pixmap = QtGui.QPixmap(img_path)
+        # Resize to fit QLabel exactly (ignore aspect ratio)
+        pixmap = pixmap.scaled(label_size, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.SmoothTransformation)
+        return pixmap
+
 
     def clear_annotations(self):
         # Clear boxes and annotations, redraw image
@@ -108,13 +114,20 @@ class App(MainWindow):
 
 
     def update_image(self):
+        '''Update the displayed image and its annotations.'''
+        # Clear previous annotations and boxes to avoid duplicates
+        self.annotations = []
+        self.boxes = []
+
         img_path = os.path.join(DATA_DIR, self.image_files[self.index])
         pixmap = self.fit_pixmap_to_label(img_path)
         self.ui.label.setPixmap(pixmap)
         # Update index label
         image_name_to_display = self.image_files[self.index].split("_")[1].replace(".png","")
         self.ui.label_3.setText(f"{image_name_to_display}")
-        # self.ui.label_3.setText(f"index: {self.index}")
+
+        # Load annotations and boxes for current image
+        self.load_annotations_for_current_image()
 
         label_row = self.labels[self.index]
         fg_values = [label_row[i] for i in self.fg_indexes]
@@ -128,6 +141,40 @@ class App(MainWindow):
         # Clear box preview for new image
         self.box = None
         self.box_preview = None
+        # Draw loaded boxes
+        self.draw_all_boxes()
+
+    def load_annotations_for_current_image(self):
+        '''Helper to load annotation file and create Box objects for current image.'''
+        ann_filename = os.path.splitext(self.image_files[self.index])[0] + '.txt'
+        ann_path = os.path.join(self.ann_dir, ann_filename)
+        if os.path.exists(ann_path):
+            label_widget = self.ui.label
+            label_w = label_widget.width()
+            label_h = label_widget.height()
+            with open(ann_path, 'r') as f:
+                for line in f:
+                    label_idx, x, y, w, h = map(float, line.split('\t'))
+                    label_idx = int(label_idx)
+                    # Only add if label_idx is valid
+                    if 0 <= label_idx < len(FUNCTIONAL_GROUPS):
+                        annotation = {
+                            "x": x,
+                            "y": y,
+                            "w": w,
+                            "h": h,
+                            "label": FUNCTIONAL_GROUPS[label_idx],
+                            "label_idx": label_idx
+                        }
+                        self.annotations.append(annotation)
+                        abs_x = int(x * label_w)
+                        abs_y = int(y * label_h)
+                        abs_w = int(w * label_w)
+                        abs_h = int(h * label_h)
+                        _new_box = Box(abs_x, abs_y, label=annotation["label"], label_idx=annotation["label_idx"])
+                        _new_box.x2 = abs_x + abs_w
+                        _new_box.y2 = abs_y + abs_h
+                        self.boxes.append(_new_box)
 
     def mousePressEvent(self, event):
         if self.cursor_settings["mode"] == "edit":
@@ -246,10 +293,12 @@ class App(MainWindow):
         else:
             super().keyPressEvent(event)
 
+
 if __name__ == "__main__":
     cursor_settings = {"mode":"", "label":"", "label_idx":None}
     app = QtWidgets.QApplication(sys.argv)
-    win = App(image_files, labels)
+    # You can customize ANN_DIR here if needed
+    win = App(image_files, labels, ANN_DIR)
     win.show()
     sys.exit(app.exec_())
 
