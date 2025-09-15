@@ -8,6 +8,19 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+FUNCTIONAL_GROUPS = ["aromatics",
+                    "alcohols",
+                    "amines",
+                    "esters",
+                    "alkene",
+                    "carb",
+                    "ketones",
+                    "phenol",
+                    "nitriles",
+                    "amides",
+                    "aldehydes",
+                    "alkyne"]
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -150,6 +163,7 @@ class Ui_MainWindow(object):
         self.label_2.setText(_translate("MainWindow", "TextLabel"))
         self.pushButton_2.setText(_translate("MainWindow", "Go"))
 
+    
 
 
 # --- Add MainWindow subclass for scaling ---
