@@ -45,7 +45,7 @@ class App(MainWindow):
         self.labels = labels
         self.ann_dir = ann_dir
         self.index = 0
-        self.annotations = []  # List of dicts: [{x, y, w, h, label, label_idx}]
+        self.annotations = []  # List of dicts: [{x, y, w, h, label, label_idx}] where x,y are center coords
         self.boxes = []        # List of Box instances for current image
         self.cursor_settings = {"mode": "", "label": "base", "label_idx": 6}
         self.box = None        # Current box being drawn
@@ -78,7 +78,7 @@ class App(MainWindow):
         img_filename = self.image_files[self.index]
         ann_filename = os.path.splitext(img_filename)[0] + '.txt'
         ann_path = os.path.join(self.ann_dir, ann_filename)
-        # Save each annotation in COCO format: label_idx x y w h
+        # Save each annotation in YOLO format: label_idx center_x center_y w h
         with open(ann_path, 'w') as f:
             for i, ann in enumerate(self.annotations):
                 label_idx = ann.get('label_idx', 0)
@@ -167,10 +167,11 @@ class App(MainWindow):
                             "label_idx": label_idx
                         }
                         self.annotations.append(annotation)
-                        abs_x = int(x * label_w)
-                        abs_y = int(y * label_h)
+                        # Convert from center coordinates to top-left corner for display
                         abs_w = int(w * label_w)
                         abs_h = int(h * label_h)
+                        abs_x = int(x * label_w - abs_w/2)
+                        abs_y = int(y * label_h - abs_h/2)
                         _new_box = Box(abs_x, abs_y, label=annotation["label"], label_idx=annotation["label_idx"])
                         _new_box.x2 = abs_x + abs_w
                         _new_box.y2 = abs_y + abs_h
@@ -196,13 +197,14 @@ class App(MainWindow):
                     # Finalize box on release
                     self.box.set_end(pos.x(), pos.y())
                     x, y, w, h = self.box.get_rect()
-                    rel_x = x / label.width()
-                    rel_y = y / label.height()
+                    # Convert to center coordinates for YOLO format
+                    center_x = (x + w/2) / label.width()
+                    center_y = (y + h/2) / label.height()
                     rel_w = w / label.width()
                     rel_h = h / label.height()
                     annotation = {
-                        "x": rel_x,
-                        "y": rel_y,
+                        "x": center_x,
+                        "y": center_y,
                         "w": rel_w,
                         "h": rel_h,
                         "label": self.box.label,
