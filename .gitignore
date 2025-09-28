@@ -4,3 +4,4 @@ data/*
 file_index_finder.py
 .venv/
 .idea/
+correct_annotations.py

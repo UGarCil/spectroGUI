@@ -6,7 +6,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from gui import MainWindow, FUNCTIONAL_GROUPS
 
 # Get all PNG images in ./data
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data_ag')
 image_files = sorted([f for f in os.listdir(DATA_DIR) if f.endswith('.png')])
 
 # Load labels (update filename if needed)
@@ -15,7 +15,7 @@ labels = np.load(LABELS_PATH)
 assert labels.shape[0] == len(image_files), "Labels and images count mismatch!"
 
 # Global annotation directory (can be customized)
-ANN_DIR = os.path.join(os.path.dirname(__file__), 'annotations')
+ANN_DIR = os.path.join(os.path.dirname(__file__), 'annotations_ag')
 
 
 class Box:
