@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 
-## Return the row of the image_id that user inputs
+## A function that finds the SDBS number of a given image number.
 def lookup_image(df):
     while True:
         try:
@@ -19,25 +19,27 @@ def lookup_image(df):
         except ValueError:
             print("Please enter a valid integer image_id or 'exit'.")
 
+## A function that returns image number that has a specific functional group
+def lookup_fg(df):
+    user_input = input("Enter a functional group (or type 'exit to quit): ")
+    mask = df["label"].apply(lambda lst: isinstance(lst, list) and "nitriles" in lst)
+    result = df.loc[mask, ["image_id", "SDBS_no", "label"]]
+    result.to_csv('cached_metadata_fg.csv', index=False)
+
 ## Main Starts Here
 # Read the json file
 with open('cached_metadata.json', 'r') as f:
     cached_metadata = json.load(f)
-
 # Save the json file as a dataframe
 df = pd.DataFrame({'image_path': cached_metadata['image_paths'], 'label': cached_metadata['labels']})
-
 # Perform a dataclean - find digits that appear right before .png at the end of the string (aka the SDBS number)
 df['SDBS_no'] = df['image_path'].str.extract(r'(\d+)\.png$')
-
 # Data_id: Starting from 0, all the way to the length of the dataframe
 df['image_id'] = list(range(len(df)))
-
 # Drop the "image_path" column
 df = df.drop(columns=['image_path'])
 df = df[['image_id', 'SDBS_no', 'label']]
-
 # Export the results as a csv
 df.to_csv('cached_metadata.csv', index=False)
-
 lookup_image(df)
+lookup_fg(df)
