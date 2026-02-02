@@ -5,3 +5,4 @@ data/*
 .idea/
 cached_metadata.csv
 cached_metadata.json
+cached_metadata_fg.csv
