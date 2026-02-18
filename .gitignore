@@ -3,6 +3,7 @@ data/*
 !data/.gitkeep
 .venv/
 .idea/
+FINAL_MODEL_AND_RESULTS/
 cached_metadata.csv
 cached_metadata.json
 cached_metadata_fg.csv
